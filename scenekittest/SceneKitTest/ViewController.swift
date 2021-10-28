@@ -11,7 +11,7 @@ import SceneKit
 class ViewController: UIViewController {
     
     @IBOutlet weak var sceneView: SCNView!
-    var button: SCNNode!
+    
     var listButton: [SCNNode] = []
     var cameraNode = SCNNode()
     
@@ -23,137 +23,20 @@ class ViewController: UIViewController {
         
         (-0.55, 0.11, 0.0, 0.5, 12, 14)
     ]
+    
+    let sceneFileName = "Ecopark-1.obj"
 
     override func viewDidLoad() {
         super.viewDidLoad()
         
         // MARK: - Set up Scene
         // 1: Load .obj file
-        guard let scene = SCNScene(named: "Ecopark-1.obj") else {
-            print("fail")
+        guard let scene = SCNScene(named: sceneFileName) else {
+            print("Cannot load scene: \(sceneFileName)")
             return
         }
         
-//        let bundle = Bundle.main
-//        let path = bundle.path(forResource: "ok1", ofType: "obj")
-//        let url = URL(fileURLWithPath: path!)
-//        let asset = MDLAsset(url: url)
-//
-//        guard let scene = SCNScene(named: url.absoluteString) else {
-//            print("fail")
-//            return
-//        }
-        
-        
-        // 2: Add camera node
-//        let cameraNode = SCNNode()
-        cameraNode.camera = SCNCamera()
-        
-        // 3: Place camera
-        cameraNode.position = SCNVector3(x: 2, y: 0, z: 200)
-        cameraNode.camera?.zFar += 200
-        
-        // 4: Set camera on scene
-        scene.rootNode.addChildNode(cameraNode)
-        
-        // 5: Adding light to scene
-        let lightNode = SCNNode()
-        lightNode.light = SCNLight()
-        lightNode.light?.type = .omni
-        lightNode.position = SCNVector3(x: 0, y: 10, z: 35)
-        let lightNode2 = SCNNode()
-        lightNode2.light = SCNLight()
-        lightNode2.light?.type = .omni
-        lightNode2.position = SCNVector3(x: -50, y: 10, z: 0)
-        scene.rootNode.addChildNode(lightNode)
-        scene.rootNode.addChildNode(lightNode2)
-        
-        // 6: Creating and adding ambien light to scene
-//        let ambientLightNode = SCNNode()
-//        ambientLightNode.light = SCNLight()
-//        ambientLightNode.light?.type = .ambient
-//        ambientLightNode.light?.color = UIColor.darkGray
-//        scene?.rootNode.addChildNode(ambientLightNode)
-//
-        // 7: Add button to scene and add tap regcognizer to scene
-//        scene?.rootNode.addChildNode(button)
-//        let tapRecognizer = UITapGestureRecognizer()
-//            tapRecognizer.numberOfTapsRequired = 1
-//            tapRecognizer.numberOfTouches Required = 1
-//        tapRecognizer.addTarget(self, action: #selector(sceneTapped))
-//            sceneView.gestureRecognizers = [tapRecognizer]
-        
-//        let tapRecognizer = UITapGestureRecognizer()
-//        tapRecognizer.numberOfTapsRequired = 1
-//        tapRecognizer.numberOfTouchesRequired = 1
-//        tapRecognizer.addTarget(self, action: #selector(sceneTapped))
-//        sceneView.gestureRecognizers = [tapRecognizer]
-        
-        let ambientLightNode = SCNNode()
-        ambientLightNode.light = SCNLight()
-        ambientLightNode.light?.type = .ambient
-        ambientLightNode.light?.color = UIColor.darkGray
-        scene.rootNode.addChildNode(ambientLightNode)
-//        sceneView.autoenablesDefaultLighting = true
-        
-        // MARK: - Render Button
-        let box = scene.rootNode.boundingBox
-        print(scene.rootNode.boundingBox)
-        
-        let buttonGeometry = SCNBox(width: CGFloat(box.max.x - box.min.x), height: CGFloat(box.max.y - box.min.y), length: CGFloat(box.max.z - box.min.z), chamferRadius: 0)
-        let buttonMaterial = SCNMaterial()
-        buttonMaterial.diffuse.contents = UIColor(displayP3Red: 1, green: 0.5, blue: 0.5, alpha: 0.7)
-        buttonGeometry.materials = [buttonMaterial]
-        
-        
-//        let buttonGeometry2 = SCNBox(width: 16, height: 16, length: 1, chamferRadius: 0)
-//        let buttonMaterial2 = SCNMaterial()
-//        buttonMaterial2.diffuse.contents = UIColor(displayP3Red: 0.1, green: 0.1, blue: 0.1, alpha: 0.7)
-//        buttonGeometry2.materials = [buttonMaterial2]
-//
-//        var buttonx: SCNNode!
-//        buttonx = SCNNode(geometry: buttonGeometry2)
-//        buttonx.position = SCNVector3(x: -0.3 * Float((box.max.x - box.min.x)) / 2, y: Float(box.max.y - box.min.y) * 0.1, z: 0.53 * Float(box.max.z - box.min.z) / 2)
-//        scene.rootNode.addChildNode(buttonx)
-//        listButton.append(buttonx)
-        
-        for element in geometryButtonList {
-            let buttonGeometry3 = SCNBox(width: element.3, height: element.4, length: element.5, chamferRadius: 0)
-            let buttonMaterial3 = SCNMaterial()
-            buttonMaterial3.diffuse.contents = UIColor(displayP3Red: 0.1, green: 0.1, blue: 0.1, alpha: 0.7)
-            buttonGeometry3.materials = [buttonMaterial3]
-            var buttonx2: SCNNode!
-            buttonx2 = SCNNode(geometry: buttonGeometry3)
-            buttonx2.position = SCNVector3(x: element.0 * Float((box.max.x - box.min.x)) / 2, y: Float(box.max.y - box.min.y) * element.1, z: element.2 * Float(box.max.z - box.min.z) / 2)
-            scene.rootNode.addChildNode(buttonx2)
-            listButton.append(buttonx2)
-            
-            print("------")
-            print(buttonx2.position.x)
-            print(buttonx2.position.y)
-            print(buttonx2.position.z)
-        }
-        
-        print("------")
-//        let buttonGeometry2 = SCNBox(width: 1, height: CGFloat(box.max.y - box.min.y), length: CGFloat(box.max.z - box.min.z), chamferRadius: 0)
-//        let buttonMaterial2 = SCNMaterial()
-//        buttonMaterial2.diffuse.contents = UIColor(displayP3Red: 0.1, green: 0.1, blue: 0.1, alpha: 0.7)
-//        buttonGeometry2.materials = [buttonMaterial2]
-//
-//        for i in 0...1 {
-//            var buttonx: SCNNode!
-//            buttonx = SCNNode(geometry: buttonGeometry2)
-//            buttonx.position = SCNVector3(x: Float(i) * Float((box.max.x - box.min.x)) - Float((box.max.x - box.min.x) / 2), y: Float(box.max.y - box.min.y) / 2, z: 0)
-//            scene.rootNode.addChildNode(buttonx)
-//            listButton.append(buttonx)
-//        }
-        
-//        button = SCNNode(geometry: buttonGeometry)
-//        button.position = SCNVector3(x: 0, y: 0.5, z: 15)
-//        scene?.rootNode.addChildNode(button)
-        
-        
-        // MARK: - Set up Camera
+        // MARK: - Configure Scene
         // Allow user to manipulate camera
         sceneView.allowsCameraControl = true
         
@@ -172,20 +55,123 @@ class ViewController: UIViewController {
         // Allow user translate image
         sceneView.cameraControlConfiguration.allowsTranslation = true
         
+        // MARK: - Set up properties
+        let box = scene.rootNode.boundingBox
+        
+        
+        
+        // MARK: - Set up Camera
+        // 2: Add camera node
+        cameraNode.camera = SCNCamera()
+        
+        // 3: Place camera
+        cameraNode.position = SCNVector3(x: 2, y: 0, z: 200)
+        cameraNode.camera?.zFar += 200
+        
+        // 4: Set camera on scene
+        scene.rootNode.addChildNode(cameraNode)
+        
+        // MARK: - Set up Light
+        // 5: Adding light to scene
+        let lightNode1 = SCNNode()
+        lightNode1.light = SCNLight()
+        lightNode1.light?.type = .omni
+        lightNode1.position = SCNVector3(x: 0, y: 10, z: 35)
+        scene.rootNode.addChildNode(lightNode1)
+        
+        let lightNode2 = SCNNode()
+        lightNode2.light = SCNLight()
+        lightNode2.light?.type = .omni
+        lightNode2.position = SCNVector3(x: -50, y: 10, z: 0)
+        scene.rootNode.addChildNode(lightNode2)
+        
+        // 6: Creating and adding ambien light to scene
+        let ambientLightNode = SCNNode()
+        ambientLightNode.light = SCNLight()
+        ambientLightNode.light?.type = .ambient
+        ambientLightNode.light?.color = UIColor.darkGray
+        scene.rootNode.addChildNode(ambientLightNode)
+//        sceneView.autoenablesDefaultLi.ghting = true
+        
+        // MARK: - Sample code create Button 1 with UITapGestureRecognizer - Sample code
+        // 7: Add button to scene and add tap regcognizer to scene
+//        scene?.rootNode.addChildNode(button)
+//        let tapRecognizer = UITapGestureRecognizer()
+//            tapRecognizer.numberOfTapsRequired = 1
+//            tapRecognizer.numberOfTouches Required = 1
+//        tapRecognizer.addTarget(self, action: #selector(sceneTapped))
+//            sceneView.gestureRecognizers = [tapRecognizer]
+        
+//        let tapRecognizer = UITapGestureRecognizer()
+//        tapRecognizer.numberOfTapsRequired = 1
+//        tapRecognizer.numberOfTouchesRequired = 1
+//        tapRecognizer.addTarget(self, action: #selector(sceneTapped))
+//        sceneView.gestureRecognizers = [tapRecognizer]
+        
+        
+        // MARK: - Gesture handler
+        // Place these two lines of code where your sceneView is initialize or its properties are set.
+//        var pinchRecognizer = UITapGestureRecognizer(target: self, action: #selector(pinchGesture))
+//        pinchRecognizer.numberOfTapsRequired = 2
+//        sceneView.addGestureRecognizer(pinchRecognizer)
+        
+        
+        
+        // MARK: - Sample code create Button 2
+//        let buttonGeometry2 = SCNBox(width: 16, height: 16, length: 1, chamferRadius: 0)
+//        let buttonMaterial2 = SCNMaterial()
+//        buttonMaterial2.diffuse.contents = UIColor(displayP3Red: 0.1, green: 0.1, blue: 0.1, alpha: 0.7)
+//        buttonGeometry2.materials = [buttonMaterial2]
+//
+//        var buttonx: SCNNode!
+//        buttonx = SCNNode(geometry: buttonGeometry2)
+//        buttonx.position = SCNVector3(x: -0.3 * Float((box.max.x - box.min.x)) / 2, y: Float(box.max.y - box.min.y) * 0.1, z: 0.53 * Float(box.max.z - box.min.z) / 2)
+//        scene.rootNode.addChildNode(buttonx)
+//        listButton.append(buttonx)
+        
+//        let buttonGeometry2 = SCNBox(width: 1, height: CGFloat(box.max.y - box.min.y), length: CGFloat(box.max.z - box.min.z), chamferRadius: 0)
+//        let buttonMaterial2 = SCNMaterial()
+//        buttonMaterial2.diffuse.contents = UIColor(displayP3Red: 0.1, green: 0.1, blue: 0.1, alpha: 0.7)
+//        buttonGeometry2.materials = [buttonMaterial2]
+//
+//        for i in 0...1 {
+//            var buttonx: SCNNode!
+//            buttonx = SCNNode(geometry: buttonGeometry2)
+//            buttonx.position = SCNVector3(x: Float(i) * Float((box.max.x - box.min.x)) - Float((box.max.x - box.min.x) / 2), y: Float(box.max.y - box.min.y) / 2, z: 0)
+//            scene.rootNode.addChildNode(buttonx)
+//            listButton.append(buttonx)
+//        }
+        
+//        button = SCNNode(geometry: buttonGeometry)
+//        button.position = SCNVector3(x: 0, y: 0.5, z: 15)
+//        scene?.rootNode.addChildNode(button)
+        
+        
+        // MARK: - Render Button
+        let buttonGeometry = SCNBox(width: CGFloat(box.max.x - box.min.x), height: CGFloat(box.max.y - box.min.y), length: CGFloat(box.max.z - box.min.z), chamferRadius: 0)
+        let buttonMaterial = SCNMaterial()
+        buttonMaterial.diffuse.contents = UIColor(displayP3Red: 1, green: 0.5, blue: 0.5, alpha: 0.7)
+        buttonGeometry.materials = [buttonMaterial]
+        
+        for element in geometryButtonList {
+            let buttonGeometry3 = SCNBox(width: element.3, height: element.4, length: element.5, chamferRadius: 0)
+            let buttonMaterial3 = SCNMaterial()
+            buttonMaterial3.diffuse.contents = UIColor(displayP3Red: 0.1, green: 0.1, blue: 0.1, alpha: 0.7)
+            buttonGeometry3.materials = [buttonMaterial3]
+            var buttonx2: SCNNode!
+            buttonx2 = SCNNode(geometry: buttonGeometry3)
+            buttonx2.position = SCNVector3(x: element.0 * Float((box.max.x - box.min.x)) / 2, y: Float(box.max.y - box.min.y) * element.1, z: element.2 * Float(box.max.z - box.min.z) / 2)
+            scene.rootNode.addChildNode(buttonx2)
+            listButton.append(buttonx2)
+        }
+        
+        
+        // MARK: - Last calls
         // Set scene settings
         sceneView.scene = scene
-        
-        
-        // Place these two lines of code where your sceneView is initialize or its properties are set.
-        var pinchRecognizer = UITapGestureRecognizer(target: self, action: #selector(pinchGesture))
-        pinchRecognizer.numberOfTapsRequired = 2
-        sceneView.addGestureRecognizer(pinchRecognizer)
-        
-        // Place these two lines of code where your sceneView is initialize or its properties are set.
-//        var pan = UIPinchGestureRecognizer(target: self, action: #selector(pinchGesture))
-//        sceneView.addGestureRecognizer(pan)
     }
     
+    /// Deprecated
     @objc func pinchGesture(_ sender: UITapGestureRecognizer) {
         print(sender.numberOfTouches)
         
@@ -196,28 +182,7 @@ class ViewController: UIViewController {
       }
         
     
-    // ref to step 7
-    @objc func sceneTapped(recognizer: UITapGestureRecognizer) {
-        let location = recognizer.location(in: sceneView)
-        let hitResults = sceneView.hitTest(location, options: nil)
-        if hitResults.count > 0 {
-            let result = hitResults[0]
-            let node = result.node
-            if listButton.contains(node) {
-//            if node == button {
-                SCNTransaction.begin()
-                SCNTransaction.animationDuration = 0.0
-                let materials = node.geometry?.materials
-                let material = materials![0]
-                material.diffuse.contents = UIColor(displayP3Red: 1, green: 0.5, blue: 0.5, alpha: 1)
-                SCNTransaction.commit()
-                     
-                let action = SCNAction.moveBy(x: 0, y: -100, z: 0, duration: 0)
-                node.runAction(action)
-            }
-        }
-    }
-    
+    // MARK: - Handle tap - refer to step 7
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
 //        feedback(type: 6)
         // 1
@@ -235,6 +200,7 @@ class ViewController: UIViewController {
             handleTouchFor(node: result.node)
         }
     }
+    
     var i = true
     func handleTouchFor(node: SCNNode) {
         if listButton.contains(node) {
@@ -270,6 +236,29 @@ class ViewController: UIViewController {
 //            node.runAction(action)
         }
     }
+    
+    /// Deprecated
+    @objc func sceneTapped(recognizer: UITapGestureRecognizer) {
+        let location = recognizer.location(in: sceneView)
+        let hitResults = sceneView.hitTest(location, options: nil)
+        if hitResults.count > 0 {
+            let result = hitResults[0]
+            let node = result.node
+            if listButton.contains(node) {
+//            if node == button {
+                SCNTransaction.begin()
+                SCNTransaction.animationDuration = 0.0
+                let materials = node.geometry?.materials
+                let material = materials![0]
+                material.diffuse.contents = UIColor(displayP3Red: 1, green: 0.5, blue: 0.5, alpha: 1)
+                SCNTransaction.commit()
+                     
+                let action = SCNAction.moveBy(x: 0, y: -100, z: 0, duration: 0)
+                node.runAction(action)
+            }
+        }
+    }
+    
     
     
     // MARK: - Source code render 3D
