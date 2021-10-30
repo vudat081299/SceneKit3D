@@ -95,3 +95,4 @@ scenekittest/SceneKitTest/Model/*
 .DS_Store
 */.DS_Store
 **/.DS_Store
+*.DS_Store

@@ -7,13 +7,26 @@
 
 import UIKit
 import SceneKit
+import AEXML
 
 class ViewController: UIViewController {
     
+    // MARK: - IBoutlets
     @IBOutlet weak var sceneView: SCNView!
+    @IBOutlet weak var configureTableView: UITableView!
+    @IBOutlet weak var configureView: UIView!
+    @IBOutlet weak var configureButton: UIButton!
+    
+    // MARK: - Constraints
+    @IBOutlet weak var containerViewBottomCS: NSLayoutConstraint!
+    @IBOutlet weak var sceneViewLeadingCS: NSLayoutConstraint!
+    @IBOutlet weak var Trailing_CS_ConfigureButton: NSLayoutConstraint!
+    @IBOutlet weak var Bottom_CS_ConfigureView: NSLayoutConstraint!
+    @IBOutlet weak var Bottom_CS_ConfigureButton: NSLayoutConstraint!
     
     var listButton: [SCNNode] = []
     var cameraNode = SCNNode()
+    var buttonConfigure: SCNNode!
     
     let geometryButtonList: [(Float, Float, Float, CGFloat, CGFloat, CGFloat)] = [
         (0.13, 0.4, 0.6, 20, 13, 0.5),
@@ -25,9 +38,26 @@ class ViewController: UIViewController {
     ]
     
     let sceneFileName = "Ecopark-1.obj"
+    private var keyboardHeight: CGFloat = 0.0
+    var stateConfigure = StateConfigure.hide
+    let listHeaderTitle = ["Position", "Size"]
+    let listCellType: [[CellType]] = [[.select, .picker, .picker], [.picker, .picker]]
+    let listCellTitle: [[String]] = [["Side", "", ""], ["Width", "Height"]]
+    
+    var outputDataOfConfigureFrom = [[CGFloat(2.3), CGFloat(50.3), CGFloat(0)], [CGFloat(50), CGFloat(50)]] {
+        didSet {
+            updateScene()
+        }
+    }
+    
+    
 
+    // MARK: - Life cycle
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        configureHierarchy()
+        configureKeyboard()
         
         // MARK: - Set up Scene
         // 1: Load .obj file
@@ -47,10 +77,15 @@ class ViewController: UIViewController {
         sceneView.defaultCameraController.minimumVerticalAngle = 20
         
         // Show FPS logs and timming
-        sceneView.showsStatistics = true
+//        sceneView.showsStatistics = true
         
         // Set background color
-        sceneView.backgroundColor = UIColor.white
+        if #available(iOS 13.0, *) {
+            sceneView.backgroundColor = .systemBackground
+        } else {
+            // Fallback on earlier versions
+            sceneView.backgroundColor = .white
+        }
         
         // Allow user translate image
         sceneView.cameraControlConfiguration.allowsTranslation = true
@@ -171,15 +206,26 @@ class ViewController: UIViewController {
         sceneView.scene = scene
     }
     
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        
+        // MARK: - Set Default State UI
+        hideConfigureViewState()
+        
+        // MARK: - Set Default UI
+        configureView.dropShadow()
+        configureButton.border()
+    }
+    
     /// Deprecated
     @objc func pinchGesture(_ sender: UITapGestureRecognizer) {
         print(sender.numberOfTouches)
         
-          if sender.numberOfTouches == 2 {
-              // Disable zoom
-              print("zoom attempted")
-          }
-      }
+        if sender.numberOfTouches == 2 {
+            // Disable zoom
+            print("zoom attempted")
+        }
+    }
         
     
     // MARK: - Handle tap - refer to step 7
@@ -259,6 +305,146 @@ class ViewController: UIViewController {
         }
     }
     
+    // MARK: - UI States
+    func showConfigureViewState() {
+        stateConfigure = StateConfigure.show
+        prepareSceneAfterChangeState()
+        UIView
+            .animate(withDuration: 0.3, delay: 0.0,
+                     options: [.curveEaseInOut],
+                     animations: {[weak self] in
+                
+                self?.Bottom_CS_ConfigureView.constant = 30
+                self?.Trailing_CS_ConfigureButton.constant = 0
+                self?.Bottom_CS_ConfigureButton.constant = 8
+                self?.view.layoutIfNeeded()
+            },
+                     completion: nil
+            )
+        
+        
+        configureButton.tintColor = .systemPink
+        configureButton.setTitle("Hide", for: .normal)
+        self.view.layoutIfNeeded()
+    }
+    
+    func hideConfigureViewState() {
+        stateConfigure = StateConfigure.hide
+        prepareSceneAfterChangeState()
+        UIView
+            .animate(withDuration: 0.3, delay: 0.0,
+                     options: [.curveEaseInOut],
+                     animations: {[weak self] in
+                
+                self?.Bottom_CS_ConfigureView.constant = -(self?.configureView.frame.size.height)!
+                self?.Trailing_CS_ConfigureButton.constant = -(self?.configureView.frame.size.width)! + (self?.configureButton.frame.size.width)!
+                self?.Bottom_CS_ConfigureButton.constant = 32
+                self?.view.layoutIfNeeded()
+            },
+                     completion: nil
+            )
+        
+        if #available(iOS 13.0, *) {
+            configureButton.tintColor = .link
+        } else {
+            // Fallback on earlier versions
+            configureButton.tintColor = .blue
+        }
+        
+        self.view.endEditing(true)
+        configureButton.setTitle("Configure", for: .normal)
+        self.view.layoutIfNeeded()
+    }
+    
+    
+    // MARK: - IBACtions
+    @IBAction func configureAction(_ sender: UIButton) {
+        feedback(type: 1)
+        switch stateConfigure {
+        case .show:
+            hideConfigureViewState()
+        case .hide:
+            showConfigureViewState()
+        }
+    }
+    
+    // MARK: - @objc function
+    @objc func doneButtonAction() {
+        print("doneButtonAction")
+        feedback(type: 4)
+        
+    }
+    
+    @objc func stepperChangedValue(_ sender: UIStepper) {
+        print("stepperChangedValue")
+        feedback(type: 4)
+        
+        outputDataOfConfigureFrom[0][0] = CGFloat(sender.value)
+        print(outputDataOfConfigureFrom[0][0])
+        
+        changeSideOnScene(to: Int(sender.value))
+    }
+    
+    @objc func editingChangedValue(_ sender: UITextField) {
+        print("editingChangedValue")
+        var plain = ""
+        if sender.text == nil || sender.text == "" {
+            plain = "0"
+        } else {
+            plain = sender.text!
+        }
+        let value = (plain as NSString).floatValue
+        let senderTag = sender.tag
+        outputDataOfConfigureFrom[senderTag / 10][senderTag % 10] = CGFloat(value)
+        print(outputDataOfConfigureFrom)
+    }
+    
+    @objc func editingDidEnd(_ sender: UITextField) {
+        print("editingDidEnd")
+        var plain = ""
+        if sender.text == nil || sender.text == "" {
+            plain = "0"
+        } else {
+            plain = sender.text!
+        }
+        let value = (plain as NSString).floatValue
+        let senderTag = sender.tag
+        outputDataOfConfigureFrom[senderTag / 10][senderTag % 10] = CGFloat(value)
+        print(outputDataOfConfigureFrom)
+    }
+    
+    
+    // MARK: - Methods
+    func changeSideOnScene(to side: Int = 0) {
+        print("changeSideOnScene to \(side)")
+    }
+    
+    func prepareSceneAfterChangeState() {
+        switch stateConfigure {
+        case .hide:
+            if buttonConfigure != nil && listButton.contains(buttonConfigure) {
+                buttonConfigure.removeFromParentNode()
+                listButton.removeLast()
+            }
+        case .show:
+            let buttonGeometry = SCNBox(width: outputDataOfConfigureFrom[1][0], height: outputDataOfConfigureFrom[1][1], length: 10, chamferRadius: 0)
+            let buttonMaterial = SCNMaterial()
+            buttonMaterial.diffuse.contents = UIColor(displayP3Red: 0.1, green: 0.1, blue: 0.1, alpha: 0.7)
+            buttonGeometry.materials = [buttonMaterial]
+            buttonConfigure = SCNNode(geometry: buttonGeometry)
+            buttonConfigure.position = SCNVector3(x: Float(outputDataOfConfigureFrom[0][1]), y: Float(outputDataOfConfigureFrom[0][2]), z: 5)
+            sceneView.scene!.rootNode.addChildNode(buttonConfigure)
+            listButton.append(buttonConfigure)
+        }
+    }
+    
+    func updateScene() {
+        print("updateScene")
+        let action = SCNAction.move(to: SCNVector3(x: Float(outputDataOfConfigureFrom[0][1]), y: Float(outputDataOfConfigureFrom[0][2]), z: 5), duration: 0)
+        buttonConfigure.runAction(action)
+        buttonConfigure.
+    }
+    
     
     
     // MARK: - Source code render 3D
@@ -276,6 +462,97 @@ class ViewController: UIViewController {
     @IBAction func sideOnChanged(_ sender: UIStepper) {
         feedback(type: 6)
         side = Int(sender.value)
+    }
+}
+
+extension ViewController: UITableViewDataSource, UITableViewDelegate {
+    private func configureHierarchy() {
+        configureTableView.dataSource = self
+        configureTableView.delegate = self
+    }
+    
+    func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "HeaderCell") as! HeaderCell
+        cell.headerTitle.text = listHeaderTitle[section]
+        return cell
+    }
+    
+    func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
+        return 45.0
+    }
+    
+    func tableView(_ tableView: UITableView, heightForFooterInSection section: Int) -> CGFloat {
+        return 0.0
+    }
+    
+    func numberOfSections(in tableView: UITableView) -> Int {
+        2
+    }
+    
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        if section == 0 {
+            return 3
+        } else if section == 1 {
+            return 3
+        }
+        return 0
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        if indexPath.section == 1 {
+            if indexPath.row == 2 {
+                let cell: DoneActionCell = tableView.dequeueReusableCell(withIdentifier: "DoneActionCell", for: indexPath) as! DoneActionCell
+                cell.doneButton.addTarget(self, action: #selector(doneButtonAction), for: .touchUpInside)
+                return cell
+            }
+        }
+        
+        switch listCellType[indexPath.section][indexPath.row] {
+        case .picker:
+            let cell: PickerCell = tableView.dequeueReusableCell(withIdentifier: "PickerCell", for: indexPath) as! PickerCell
+            cell.constantTextField.tag = Int(indexPath.section.description + indexPath.row.description)!
+            cell.titleLabel.text = listCellTitle[indexPath.section][indexPath.row]
+            cell.constantTextField.text = outputDataOfConfigureFrom[indexPath.section][indexPath.row].description
+            cell.constantTextField.addTarget(self, action: #selector(editingChangedValue), for: .editingChanged)
+            cell.constantTextField.addTarget(self, action: #selector(editingDidEnd), for: .editingDidEnd)
+            return cell
+        case .select:
+            let cell: SelectCell = tableView.dequeueReusableCell(withIdentifier: "SelectCell", for: indexPath) as! SelectCell
+            cell.titleLabel.text = listCellTitle[indexPath.section][indexPath.row]
+            cell.side.text = Int(outputDataOfConfigureFrom[indexPath.section][indexPath.row]).description
+            cell.stepper.value = Double(outputDataOfConfigureFrom[indexPath.section][indexPath.row])
+            cell.stepper.addTarget(self, action: #selector(stepperChangedValue), for: .valueChanged)
+            return cell
+        }
+        
+    }
+}
+
+//MARK: Keyboard.
+extension ViewController: UITextFieldDelegate {
+    private func configureKeyboard() {
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillShow), name: UIResponder.keyboardWillShowNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillHide), name: UIResponder.keyboardWillHideNotification, object: nil)
+    }
+    
+    @objc func keyboardWillShow(_ notification: NSNotification) {
+        if let keyboardRect = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue {
+            keyboardHeight = keyboardRect.height
+            
+            self.containerViewBottomCS.constant = keyboardHeight
+            self.sceneViewLeadingCS.constant = configureView.center.x + configureView.frame.size.width / 2 + 8
+            self.view.layoutIfNeeded()
+        }
+    }
+    
+    @objc func keyboardWillHide(notification: NSNotification) {
+        if let keyboardRect = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue {
+            keyboardHeight = keyboardRect.height
+            
+            self.containerViewBottomCS.constant -= keyboardRect.height
+            self.sceneViewLeadingCS.constant = 0
+            self.view.layoutIfNeeded()
+        }
     }
 }
 
@@ -311,4 +588,111 @@ func feedback(type: Int) {
         let generator = UISelectionFeedbackGenerator()
         generator.selectionChanged()
     }
+}
+
+// MARK: - XML handler
+func parseXMLModel () {
+    guard
+        let xmlPath = Bundle.main.path(forResource: "example", ofType: "xml"),
+        let data = try? Data(contentsOf: URL(fileURLWithPath: xmlPath))
+    else { return }
+
+    do {
+        let xmlDoc = try AEXMLDocument(xml: data)
+            
+        // prints the same XML structure as original
+        print(xmlDoc.xml)
+        
+        // prints cats, dogs
+        for child in xmlDoc.root.children {
+            print(child.name)
+        }
+        
+        // prints Optional("Tinna") (first element)
+        print(xmlDoc.root["cats"]["cat"].value)
+        
+        // prints Tinna (first element)
+        print(xmlDoc.root["cats"]["cat"].string)
+        
+        // prints Optional("Kika") (last element)
+        print(xmlDoc.root["dogs"]["dog"].last?.value)
+        
+        // prints Betty (3rd element)
+        print(xmlDoc.root["dogs"].children[2].string)
+        
+        // prints Tinna, Rose, Caesar
+        if let cats = xmlDoc.root["cats"]["cat"].all {
+            for cat in cats {
+                if let name = cat.value {
+                    print(name)
+                }
+            }
+        }
+        
+        // prints Villy, Spot
+        for dog in xmlDoc.root["dogs"]["dog"].all! {
+            if let color = dog.attributes["color"] {
+                if color == "white" {
+                    print(dog.string)
+                }
+            }
+        }
+        
+        // prints Tinna
+        if let cats = xmlDoc.root["cats"]["cat"].all(withValue: "Tinna") {
+            for cat in cats {
+                print(cat.string)
+            }
+        }
+        
+        // prints Caesar
+        if let cats = xmlDoc.root["cats"]["cat"].all(withAttributes: ["breed" : "Domestic", "color" : "yellow"]) {
+            for cat in cats {
+                print(cat.string)
+            }
+        }
+        
+        // prints 4
+        print(xmlDoc.root["cats"]["cat"].count)
+        
+        // prints Siberian
+        print(xmlDoc.root["cats"]["cat"].attributes["breed"]!)
+        
+        // prints <cat breed="Siberian" color="lightgray">Tinna</cat>
+        print(xmlDoc.root["cats"]["cat"].xmlCompact)
+        
+        // prints Optional(AEXML.AEXMLError.elementNotFound)
+        print(xmlDoc["NotExistingElement"].error)
+    }
+    catch {
+        print("\(error)")
+    }
+
+}
+
+func conbineXMLDocument () {
+    // create XML Document
+    let soapRequest = AEXMLDocument()
+    let attributes = ["xmlns:xsi" : "http://www.w3.org/2001/XMLSchema-instance", "xmlns:xsd" : "http://www.w3.org/2001/XMLSchema"]
+    let envelope = soapRequest.addChild(name: "soap:Envelope", attributes: attributes)
+    let header = envelope.addChild(name: "soap:Header")
+    let body = envelope.addChild(name: "soap:Body")
+    header.addChild(name: "m:Trans", value: "234", attributes: ["xmlns:m" : "http://www.w3schools.com/transaction/", "soap:mustUnderstand" : "1"])
+    let getStockPrice = body.addChild(name: "m:GetStockPrice")
+    getStockPrice.addChild(name: "m:StockName", value: "AAPL")
+
+    // prints the same XML structure as original
+    print(soapRequest.xml)
+
+}
+
+// MARK: - Data Structure
+enum StateConfigure {
+    case hide
+    case show
+}
+
+enum CellType {
+    case picker
+    case select
 }
