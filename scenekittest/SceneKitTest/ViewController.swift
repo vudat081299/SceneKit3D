@@ -27,6 +27,7 @@ class ViewController: UIViewController {
     var listButton: [SCNNode] = []
     var cameraNode = SCNNode()
     var buttonConfigure: SCNNode!
+    var box: (min: SCNVector3, max: SCNVector3)!
     
     let geometryButtonList: [(Float, Float, Float, CGFloat, CGFloat, CGFloat)] = [
         (0.13, 0.4, 0.6, 20, 13, 0.5),
@@ -42,10 +43,29 @@ class ViewController: UIViewController {
     var stateConfigure = StateConfigure.hide
     let listHeaderTitle = ["Position", "Size"]
     let listCellType: [[CellType]] = [[.select, .picker, .picker], [.picker, .picker]]
-    let listCellTitle: [[String]] = [["Side", "", ""], ["Width", "Height"]]
+    var listCellTitle: [[String]] = [["Side", "x", "y"], ["Width", "Height"]]
+    let listAxisOfSideDescription: [[String]] = [["x", "y"], ["z", "y"], ["-x", "y"], ["-z", "y"], ["-x", "-z"]]
     
-    var outputDataOfConfigureFrom = [[CGFloat(2.3), CGFloat(50.3), CGFloat(0)], [CGFloat(50), CGFloat(50)]] {
+    // Matrix render
+//    [[1, 1, 0]
+//    [0, 1, 1]
+//    [-1, 1, 0]
+//    [0, -1, 1]
+//    [-1, 0, -1]]
+    let listAxisParameterForSide = [
+        [[1, 0, 0], [0, 1, 0], [0, 0, 0]],
+        [[0, 0, 0], [0, 1, 0], [0, 0, 1]],
+        [[-1, 0, 0], [0, 1, 0], [0, 0, 0]],
+        [[0, 0, 0], [0, -1, 0], [0, 0, 1]],
+        [[-1, 0, 0], [0, 0, 0], [0, 0, -1]],
+    ]
+    
+    var side = 1
+    var outputDataOfConfigureFrom = [[CGFloat(1), CGFloat(1), CGFloat(0)], [CGFloat(50), CGFloat(50)]] {
+        willSet {
+        }
         didSet {
+            updateUIWhenSelectSide()
             updateScene()
         }
     }
@@ -71,10 +91,10 @@ class ViewController: UIViewController {
         sceneView.allowsCameraControl = true
         
         // Restrict scroll of axis
-        sceneView.defaultCameraController.interactionMode = .orbitTurntable
-        sceneView.defaultCameraController.inertiaEnabled = true
-        sceneView.defaultCameraController.maximumVerticalAngle = 20
-        sceneView.defaultCameraController.minimumVerticalAngle = 20
+//        sceneView.defaultCameraController.interactionMode = .orbitTurntable
+//        sceneView.defaultCameraController.inertiaEnabled = true
+//        sceneView.defaultCameraController.maximumVerticalAngle = 20
+//        sceneView.defaultCameraController.minimumVerticalAngle = 20
         
         // Show FPS logs and timming
 //        sceneView.showsStatistics = true
@@ -91,7 +111,7 @@ class ViewController: UIViewController {
         sceneView.cameraControlConfiguration.allowsTranslation = true
         
         // MARK: - Set up properties
-        let box = scene.rootNode.boundingBox
+        box = scene.rootNode.boundingBox
         
         
         
@@ -195,7 +215,7 @@ class ViewController: UIViewController {
             buttonGeometry3.materials = [buttonMaterial3]
             var buttonx2: SCNNode!
             buttonx2 = SCNNode(geometry: buttonGeometry3)
-            buttonx2.position = SCNVector3(x: element.0 * Float((box.max.x - box.min.x)) / 2, y: Float(box.max.y - box.min.y) * element.1, z: element.2 * Float(box.max.z - box.min.z) / 2)
+            buttonx2.position = SCNVector3(x: element.0 * Float(box.max.x - box.min.x) / 2, y: Float(box.max.y - box.min.y) * element.1, z: element.2 * Float(box.max.z - box.min.z) / 2)
             scene.rootNode.addChildNode(buttonx2)
             listButton.append(buttonx2)
         }
@@ -308,7 +328,7 @@ class ViewController: UIViewController {
     // MARK: - UI States
     func showConfigureViewState() {
         stateConfigure = StateConfigure.show
-        prepareSceneAfterChangeState()
+        prepareSceneForState()
         UIView
             .animate(withDuration: 0.3, delay: 0.0,
                      options: [.curveEaseInOut],
@@ -330,7 +350,7 @@ class ViewController: UIViewController {
     
     func hideConfigureViewState() {
         stateConfigure = StateConfigure.hide
-        prepareSceneAfterChangeState()
+        prepareSceneForState()
         UIView
             .animate(withDuration: 0.3, delay: 0.0,
                      options: [.curveEaseInOut],
@@ -379,10 +399,11 @@ class ViewController: UIViewController {
         print("stepperChangedValue")
         feedback(type: 4)
         
+        side = Int(sender.value)
         outputDataOfConfigureFrom[0][0] = CGFloat(sender.value)
         print(outputDataOfConfigureFrom[0][0])
         
-        changeSideOnScene(to: Int(sender.value))
+        changeSideOnScene(to: side)
     }
     
     @objc func editingChangedValue(_ sender: UITextField) {
@@ -419,7 +440,7 @@ class ViewController: UIViewController {
         print("changeSideOnScene to \(side)")
     }
     
-    func prepareSceneAfterChangeState() {
+    func prepareSceneForState() {
         switch stateConfigure {
         case .hide:
             if buttonConfigure != nil && listButton.contains(buttonConfigure) {
@@ -438,31 +459,75 @@ class ViewController: UIViewController {
         }
     }
     
+    func updateUIWhenSelectSide() {
+        listCellTitle[0][1] = listAxisOfSideDescription[side - 1][0]
+        listCellTitle[0][2] = listAxisOfSideDescription[side - 1][1]
+        configureTableView.reloadData()
+    }
+    
     func updateScene() {
         print("updateScene")
-        let action = SCNAction.move(to: SCNVector3(x: Float(outputDataOfConfigureFrom[0][1]), y: Float(outputDataOfConfigureFrom[0][2]), z: 5), duration: 0)
-        buttonConfigure.runAction(action)
-        buttonConfigure.
+//        let action = SCNAction.move(to: SCNVector3(x: Float(outputDataOfConfigureFrom[0][1]), y: Float(outputDataOfConfigureFrom[0][2]), z: 5), duration: 0)
+        
+//        SCNTransaction.animationDuration = 0.1
+//        buttonConfigure.position = SCNVector3(x: Float(outputDataOfConfigureFrom[0][1]), y: Float(outputDataOfConfigureFrom[0][2]), z: 5)
+        
+//        let action = SCNAction.moveBy(x: outputDataOfConfigureFrom[0][1], y: outputDataOfConfigureFrom[0][2], z: 5, duration: 0.2)
+//        buttonConfigure.runAction(action)
+        
+        updateButtonConfigure()
+        
+    }
+    
+    func updateButtonConfigure() {
+        let currentAxisParameterForSide = listAxisParameterForSide[side - 1]
+        var axisParameter = [0, 0, 0]
+        for (indexAM, axisMatrix) in currentAxisParameterForSide.enumerated() {
+            if axisMatrix[indexAM] != 0 {
+                axisParameter[indexAM] = axisMatrix[indexAM]
+            }
+        }
+        var axisPosition: [Float] = [0.0, 0.0, 0.0]
+        for indexAxis in 0...2 {
+            let xC1 = (Float(outputDataOfConfigureFrom[indexAxis][1]) / 100)
+            let xC2 = (Float(box.max.x - box.min.x) / 2)
+            let xC3 = currentAxisParameterForSide[0][0]
+            let xComponent = xC1 * xC2 * Float(xC3)
+            let yC1 = (Float(outputDataOfConfigureFrom[indexAxis][2]) / 100)
+            let yC2 = (Float(box.max.x - box.min.x))
+            let yC3 = currentAxisParameterForSide[0][1]
+            let yComponent = yC1 * yC2 * Float(yC3)
+            let zC1 = (Float(outputDataOfConfigureFrom[indexAxis][3]) / 100)
+            let zC2 = (Float(box.max.x - box.min.x) / 2)
+            let zC3 = currentAxisParameterForSide[0][2]
+            let zComponent = zC1 * zC2 * Float(zC3)
+            axisPosition[indexAxis] = axisParameter[indexAxis] == 0 ? 0.5 : xComponent + yComponent + zComponent
+        }
+        SCNTransaction.animationDuration = 0.1
+        buttonConfigure.position = SCNVector3(
+            x: axisPosition[0],
+            y: axisPosition[1],
+            z: axisPosition[2]
+        )
+        
+//        switch side {
+//        case 1:
+//        case 2:
+//            buttonConfigure.position = SCNVector3(x: Float(outputDataOfConfigureFrom[0][1]) * Float(box.max.x - box.min.x) / 2, y: Float(outputDataOfConfigureFrom[0][2]) * Float(box.max.y - box.min.y), z: 0.5)
+//        case 3:
+//            buttonConfigure.position = SCNVector3(x: Float(outputDataOfConfigureFrom[0][1]) * Float(box.max.x - box.min.x) / 2, y: Float(outputDataOfConfigureFrom[0][2]) * Float(box.max.y - box.min.y), z: 0.5)
+//        case 4:
+//            buttonConfigure.position = SCNVector3(x: Float(outputDataOfConfigureFrom[0][1]) * Float(box.max.x - box.min.x) / 2, y: Float(outputDataOfConfigureFrom[0][2]) * Float(box.max.y - box.min.y), z: 0.5)
+//        case 5:
+//            buttonConfigure.position = SCNVector3(x: Float(outputDataOfConfigureFrom[0][1]) * Float(box.max.x - box.min.x) / 2, y: Float(outputDataOfConfigureFrom[0][2]) * Float(box.max.y - box.min.y), z: 0.5)
+//        default:
+//            buttonConfigure.position = SCNVector3(x: Float(outputDataOfConfigureFrom[0][1]) * Float(box.max.x - box.min.x) / 2, y: Float(outputDataOfConfigureFrom[0][2]) * Float(box.max.y - box.min.y), z: 0.5)
+//        }
     }
     
     
     
     // MARK: - Source code render 3D
-    @IBAction func width(_ sender: UISlider) {
-        feedback(type: 6)
-        
-    }
-    
-    @IBAction func height(_ sender: UISlider) {
-        feedback(type: 6)
-        
-    }
-    
-    var side = 0
-    @IBAction func sideOnChanged(_ sender: UIStepper) {
-        feedback(type: 6)
-        side = Int(sender.value)
-    }
 }
 
 extension ViewController: UITableViewDataSource, UITableViewDelegate {
