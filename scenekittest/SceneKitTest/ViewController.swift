@@ -34,7 +34,6 @@ class ViewController: UIViewController {
         (-0.3, 0.1, 0.45, 16, 12, 0.5),
         (0.13, 0.12, 0.45, 16, 12, 0.5),
         (-0.17, 0.4, 0.45, 3, 13, 0.5),
-        
         (-0.55, 0.11, 0.0, 0.5, 12, 14)
     ]
     
@@ -42,9 +41,10 @@ class ViewController: UIViewController {
     private var keyboardHeight: CGFloat = 0.0
     var stateConfigure = StateConfigure.hide
     let listHeaderTitle = ["Position", "Size"]
-    let listCellType: [[CellType]] = [[.select, .picker, .picker], [.picker, .picker]]
-    var listCellTitle: [[String]] = [["Side", "x", "y"], ["Width", "Height"]]
-    let listAxisOfSideDescription: [[String]] = [["x", "y"], ["z", "y"], ["-x", "y"], ["-z", "y"], ["-x", "-z"]]
+    let listCellType: [[CellType]] = [[.picker, .picker, .picker], [.select, .picker, .picker, .picker]]
+    var listCellTitle: [[String]] = [["x", "y", "z"], ["Side", "Width", "Height", ""]]
+    let listAxisOfSideDescription: [String] = ["x", "y", "z"]
+    var tagTextFieldChanging = 10
     
     // Matrix render
 //    [[1, 1, 0]
@@ -53,15 +53,15 @@ class ViewController: UIViewController {
 //    [0, -1, 1]
 //    [-1, 0, -1]]
     let listAxisParameterForSide = [
-        [[1, 0, 0], [0, 1, 0], [0, 0, 0]],
-        [[0, 0, 0], [0, 1, 0], [0, 0, 1]],
-        [[-1, 0, 0], [0, 1, 0], [0, 0, 0]],
-        [[0, 0, 0], [0, -1, 0], [0, 0, 1]],
-        [[-1, 0, 0], [0, 0, 0], [0, 0, -1]],
+        [1, 1, 0],
+        [0, 1, 1],
+        [-1, 1, 0],
+        [0, 1, -1],
+        [1, 0, -1]
     ]
     
     var side = 1
-    var outputDataOfConfigureFrom = [[CGFloat(1), CGFloat(1), CGFloat(0)], [CGFloat(50), CGFloat(50)]] {
+    var outputDataOfConfigureFrom = [[CGFloat(1), CGFloat(0), CGFloat(0)], [CGFloat(1), CGFloat(50), CGFloat(50)]] {
         willSet {
         }
         didSet {
@@ -399,11 +399,12 @@ class ViewController: UIViewController {
         print("stepperChangedValue")
         feedback(type: 4)
         
-        side = Int(sender.value)
-        outputDataOfConfigureFrom[0][0] = CGFloat(sender.value)
-        print(outputDataOfConfigureFrom[0][0])
+        changeSideOnScene(to: Int(sender.value))
         
-        changeSideOnScene(to: side)
+        outputDataOfConfigureFrom[1][0] = CGFloat(sender.value)
+        print(outputDataOfConfigureFrom[1][0])
+        
+        configureTableView.reloadData()
     }
     
     @objc func editingChangedValue(_ sender: UITextField) {
@@ -415,13 +416,14 @@ class ViewController: UIViewController {
             plain = sender.text!
         }
         let value = (plain as NSString).floatValue
-        let senderTag = sender.tag
-        outputDataOfConfigureFrom[senderTag / 10][senderTag % 10] = CGFloat(value)
+        tagTextFieldChanging = sender.tag
+        outputDataOfConfigureFrom[tagTextFieldChanging / 10][tagTextFieldChanging % 10] = CGFloat(value)
         print(outputDataOfConfigureFrom)
     }
     
     @objc func editingDidEnd(_ sender: UITextField) {
         print("editingDidEnd")
+        tagTextFieldChanging = sender.tag
         var plain = ""
         if sender.text == nil || sender.text == "" {
             plain = "0"
@@ -429,8 +431,8 @@ class ViewController: UIViewController {
             plain = sender.text!
         }
         let value = (plain as NSString).floatValue
-        let senderTag = sender.tag
-        outputDataOfConfigureFrom[senderTag / 10][senderTag % 10] = CGFloat(value)
+        tagTextFieldChanging = sender.tag
+        outputDataOfConfigureFrom[tagTextFieldChanging / 10][tagTextFieldChanging % 10] = CGFloat(value)
         print(outputDataOfConfigureFrom)
     }
     
@@ -438,6 +440,7 @@ class ViewController: UIViewController {
     // MARK: - Methods
     func changeSideOnScene(to side: Int = 0) {
         print("changeSideOnScene to \(side)")
+        self.side = side
     }
     
     func prepareSceneForState() {
@@ -448,21 +451,36 @@ class ViewController: UIViewController {
                 listButton.removeLast()
             }
         case .show:
-            let buttonGeometry = SCNBox(width: outputDataOfConfigureFrom[1][0], height: outputDataOfConfigureFrom[1][1], length: 10, chamferRadius: 0)
+            updateScene()
+        }
+    }
+    
+    func renderButton(position: [Float], sizeBox: [CGFloat]) {
+        if (tagTextFieldChanging / 10 == 0) {
+            SCNTransaction.animationDuration = 0.2
+            buttonConfigure.position = SCNVector3(
+                x: position[0],
+                y: position[1],
+                z: position[2]
+            )
+        } else {
+            if buttonConfigure != nil {
+                buttonConfigure.removeFromParentNode()
+            }
+            let buttonGeometry = SCNBox(width: sizeBox[0], height: sizeBox[1], length: sizeBox[2], chamferRadius: 0)
             let buttonMaterial = SCNMaterial()
             buttonMaterial.diffuse.contents = UIColor(displayP3Red: 0.1, green: 0.1, blue: 0.1, alpha: 0.7)
             buttonGeometry.materials = [buttonMaterial]
             buttonConfigure = SCNNode(geometry: buttonGeometry)
-            buttonConfigure.position = SCNVector3(x: Float(outputDataOfConfigureFrom[0][1]), y: Float(outputDataOfConfigureFrom[0][2]), z: 5)
+            buttonConfigure.position = SCNVector3(x: position[0], y: position[1], z: position[2])
             sceneView.scene!.rootNode.addChildNode(buttonConfigure)
-            listButton.append(buttonConfigure)
+            if !listButton.contains(buttonConfigure) {
+                listButton.append(buttonConfigure)
+            }
         }
     }
     
     func updateUIWhenSelectSide() {
-        listCellTitle[0][1] = listAxisOfSideDescription[side - 1][0]
-        listCellTitle[0][2] = listAxisOfSideDescription[side - 1][1]
-        configureTableView.reloadData()
     }
     
     func updateScene() {
@@ -479,50 +497,36 @@ class ViewController: UIViewController {
         
     }
     
+    func getEdgeLengthOfBoxObject(direction: Int) -> Float {
+        switch direction {
+        case 0:
+            return Float(box.max.x - box.min.x)
+        case 1:
+            return Float(box.max.y - box.min.y)
+        case 2:
+            return Float(box.max.z - box.min.z)
+        default:
+            return Float(box.max.x - box.min.x)
+        }
+    }
+    
     func updateButtonConfigure() {
         let currentAxisParameterForSide = listAxisParameterForSide[side - 1]
-        var axisParameter = [0, 0, 0]
-        for (indexAM, axisMatrix) in currentAxisParameterForSide.enumerated() {
-            if axisMatrix[indexAM] != 0 {
-                axisParameter[indexAM] = axisMatrix[indexAM]
+        var vector3: [Float] = [0, 0, 0]
+        var caculatvedBox: [CGFloat] = [0, 0, 0]
+        var value1StAxis: CGFloat!
+        var value1StEdge = outputDataOfConfigureFrom[1][1]
+        for (index, parameter) in currentAxisParameterForSide.enumerated() {
+            value1StAxis = outputDataOfConfigureFrom[0][index]
+            vector3[index] = (Float(value1StAxis) / 100) * (getEdgeLengthOfBoxObject(direction: index) / 2)
+            if parameter != 0 {
+                caculatvedBox[index] = value1StEdge
+                value1StEdge = outputDataOfConfigureFrom[1][2]
+            } else {
+                caculatvedBox[index] = 0.5
             }
         }
-        var axisPosition: [Float] = [0.0, 0.0, 0.0]
-        for indexAxis in 0...2 {
-            let xC1 = (Float(outputDataOfConfigureFrom[indexAxis][1]) / 100)
-            let xC2 = (Float(box.max.x - box.min.x) / 2)
-            let xC3 = currentAxisParameterForSide[0][0]
-            let xComponent = xC1 * xC2 * Float(xC3)
-            let yC1 = (Float(outputDataOfConfigureFrom[indexAxis][2]) / 100)
-            let yC2 = (Float(box.max.x - box.min.x))
-            let yC3 = currentAxisParameterForSide[0][1]
-            let yComponent = yC1 * yC2 * Float(yC3)
-            let zC1 = (Float(outputDataOfConfigureFrom[indexAxis][3]) / 100)
-            let zC2 = (Float(box.max.x - box.min.x) / 2)
-            let zC3 = currentAxisParameterForSide[0][2]
-            let zComponent = zC1 * zC2 * Float(zC3)
-            axisPosition[indexAxis] = axisParameter[indexAxis] == 0 ? 0.5 : xComponent + yComponent + zComponent
-        }
-        SCNTransaction.animationDuration = 0.1
-        buttonConfigure.position = SCNVector3(
-            x: axisPosition[0],
-            y: axisPosition[1],
-            z: axisPosition[2]
-        )
-        
-//        switch side {
-//        case 1:
-//        case 2:
-//            buttonConfigure.position = SCNVector3(x: Float(outputDataOfConfigureFrom[0][1]) * Float(box.max.x - box.min.x) / 2, y: Float(outputDataOfConfigureFrom[0][2]) * Float(box.max.y - box.min.y), z: 0.5)
-//        case 3:
-//            buttonConfigure.position = SCNVector3(x: Float(outputDataOfConfigureFrom[0][1]) * Float(box.max.x - box.min.x) / 2, y: Float(outputDataOfConfigureFrom[0][2]) * Float(box.max.y - box.min.y), z: 0.5)
-//        case 4:
-//            buttonConfigure.position = SCNVector3(x: Float(outputDataOfConfigureFrom[0][1]) * Float(box.max.x - box.min.x) / 2, y: Float(outputDataOfConfigureFrom[0][2]) * Float(box.max.y - box.min.y), z: 0.5)
-//        case 5:
-//            buttonConfigure.position = SCNVector3(x: Float(outputDataOfConfigureFrom[0][1]) * Float(box.max.x - box.min.x) / 2, y: Float(outputDataOfConfigureFrom[0][2]) * Float(box.max.y - box.min.y), z: 0.5)
-//        default:
-//            buttonConfigure.position = SCNVector3(x: Float(outputDataOfConfigureFrom[0][1]) * Float(box.max.x - box.min.x) / 2, y: Float(outputDataOfConfigureFrom[0][2]) * Float(box.max.y - box.min.y), z: 0.5)
-//        }
+        renderButton(position: vector3, sizeBox: caculatvedBox)
     }
     
     
@@ -551,21 +555,16 @@ extension ViewController: UITableViewDataSource, UITableViewDelegate {
     }
     
     func numberOfSections(in tableView: UITableView) -> Int {
-        2
+        return listCellTitle.count
     }
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        if section == 0 {
-            return 3
-        } else if section == 1 {
-            return 3
-        }
-        return 0
+        return listCellTitle[section].count
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         if indexPath.section == 1 {
-            if indexPath.row == 2 {
+            if indexPath.row == 3 {
                 let cell: DoneActionCell = tableView.dequeueReusableCell(withIdentifier: "DoneActionCell", for: indexPath) as! DoneActionCell
                 cell.doneButton.addTarget(self, action: #selector(doneButtonAction), for: .touchUpInside)
                 return cell
