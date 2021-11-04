@@ -65,7 +65,6 @@ class ViewController: UIViewController {
         willSet {
         }
         didSet {
-            updateUIWhenSelectSide()
             updateScene()
         }
     }
@@ -383,28 +382,53 @@ class ViewController: UIViewController {
         switch stateConfigure {
         case .show:
             hideConfigureViewState()
+            
+            let filepath = getDocumentsDirectory().appendingPathComponent("configure.xml")
+            print("Read file .xml: \(filepath)")
+            do {
+                let contents = try String(contentsOf: filepath, encoding: .utf8)
+                print(contents)
+            } catch {
+                // contents could not be loaded
+                print("Fail to read file .xml")
+            }
         case .hide:
             showConfigureViewState()
         }
     }
     
     // MARK: - @objc function
-    @objc func doneButtonAction() {
+    @objc func doneButtonAction(_ sender: UIButton) {
         print("doneButtonAction")
         feedback(type: 4)
         
+        combineXMLDocument(data: outputDataOfConfigureFrom)
+        SoundFeedBack.success()
+        DispatchQueue.main.async {
+            if #available(iOS 13.0, *) {
+                sender.tintColor = .link
+                sender.setImage(UIImage(systemName: "checkmark.circle.fill"), for: .normal)
+            } else {
+                // Fallback on earlier versions
+                sender.tintColor = .systemBlue
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            sender.tintColor = .systemGreen
+            sender.setImage(nil, for: .normal)
+            sender.setTitle("Save", for: .normal)
+        }
     }
     
     @objc func stepperChangedValue(_ sender: UIStepper) {
         print("stepperChangedValue")
         feedback(type: 4)
+        tagTextFieldChanging = 11
         
         changeSideOnScene(to: Int(sender.value))
         
         outputDataOfConfigureFrom[1][0] = CGFloat(sender.value)
         print(outputDataOfConfigureFrom[1][0])
-        
-        configureTableView.reloadData()
     }
     
     @objc func editingChangedValue(_ sender: UITextField) {
@@ -446,9 +470,11 @@ class ViewController: UIViewController {
     func prepareSceneForState() {
         switch stateConfigure {
         case .hide:
-            if buttonConfigure != nil && listButton.contains(buttonConfigure) {
-                buttonConfigure.removeFromParentNode()
+            if  buttonConfigure != nil && listButton.contains(buttonConfigure) {
                 listButton.removeLast()
+            }
+            if buttonConfigure != nil {
+                buttonConfigure.removeFromParentNode()
             }
         case .show:
             updateScene()
@@ -480,21 +506,8 @@ class ViewController: UIViewController {
         }
     }
     
-    func updateUIWhenSelectSide() {
-    }
-    
     func updateScene() {
-        print("updateScene")
-//        let action = SCNAction.move(to: SCNVector3(x: Float(outputDataOfConfigureFrom[0][1]), y: Float(outputDataOfConfigureFrom[0][2]), z: 5), duration: 0)
-        
-//        SCNTransaction.animationDuration = 0.1
-//        buttonConfigure.position = SCNVector3(x: Float(outputDataOfConfigureFrom[0][1]), y: Float(outputDataOfConfigureFrom[0][2]), z: 5)
-        
-//        let action = SCNAction.moveBy(x: outputDataOfConfigureFrom[0][1], y: outputDataOfConfigureFrom[0][2], z: 5, duration: 0.2)
-//        buttonConfigure.runAction(action)
-        
         updateButtonConfigure()
-        
     }
     
     func getEdgeLengthOfBoxObject(direction: Int) -> Float {
@@ -526,7 +539,19 @@ class ViewController: UIViewController {
                 caculatvedBox[index] = 0.5
             }
         }
-        renderButton(position: vector3, sizeBox: caculatvedBox)
+        renderButton(position: vector3, sizeBox: sort(caculatvedBox))
+    }
+    
+    func sort(_ sizeBox: [CGFloat]) -> [CGFloat] {
+        switch side {
+        case 2, 4:
+            var cloneBox = sizeBox
+            cloneBox[1] = sizeBox[2]
+            cloneBox[2] = sizeBox[1]
+            return cloneBox
+        default:
+            return sizeBox
+        }
     }
     
     
@@ -734,20 +759,81 @@ func parseXMLModel () {
 
 }
 
-func conbineXMLDocument () {
+func combineXMLDocument(data: [[CGFloat]]) {
+    let combineRequest = AEXMLDocument()
+    let homeAttributes = ["path": "/house.obj"]
+    let home = combineRequest.addChild(name: "home", attributes: homeAttributes)
+        let itemAttributes = [
+//            "id": "0",
+            "type": "button",
+//            "name": "Chuông cửa",
+            "x": "\(data[0][0])",
+            "y": "\(data[0][1])",
+            "z": "\(data[0][2])",
+            "side": "\(data[1][0])",
+            "width": "\(data[1][1])",
+            "height": "\(data[1][2])"
+        ]
+        home.addChild(name: "item", attributes: itemAttributes)
+    
+    print("Log data before write to file \(data)")
+    let str = combineRequest.xml
+    let filename = getDocumentsDirectory().appendingPathComponent("configure.xml")
+
+    do {
+        try str.write(to: filename, atomically: true, encoding: String.Encoding.utf8)
+    } catch {
+        // failed to write file – bad permissions, bad filename, missing permissions, or more likely it can't be converted to the encoding
+        print("Fail write to file!")
+    }
+    
+    /*
+    <?xml version="1.0" encoding="utf-8"?>
+    <home path="/house.obj">
+        <item id="0" type="button" name="Chuông cửa" x="0" y="0" z="0" width="10" height="10" side="0" ></item>
+        <item id="1" type="button" name="Đèn sân vườn" x="0" y="0" z="0" width="20" height="20" side="2" ></item>
+        <item id="2" type="button" name="Đèn hắt" x="0" y="0" z="0" width="30" height="30" side="1" ></item>
+    </home>
+     
+     <?xml version="1.0" encoding="utf-8" standalone="no"?>
+     <home path="/house.obj">
+         <home height="10" id="0" name="Chuông cửa" side="0" type="button" width="10" x="0" y="0" z="0" />
+     </home>
+     */
+    
+    
+    
     // create XML Document
     let soapRequest = AEXMLDocument()
     let attributes = ["xmlns:xsi" : "http://www.w3.org/2001/XMLSchema-instance", "xmlns:xsd" : "http://www.w3.org/2001/XMLSchema"]
+    
     let envelope = soapRequest.addChild(name: "soap:Envelope", attributes: attributes)
-    let header = envelope.addChild(name: "soap:Header")
-    let body = envelope.addChild(name: "soap:Body")
-    header.addChild(name: "m:Trans", value: "234", attributes: ["xmlns:m" : "http://www.w3schools.com/transaction/", "soap:mustUnderstand" : "1"])
-    let getStockPrice = body.addChild(name: "m:GetStockPrice")
-    getStockPrice.addChild(name: "m:StockName", value: "AAPL")
+        let header = envelope.addChild(name: "soap:Header")
+            header.addChild(name: "m:Trans", value: "234", attributes: ["xmlns:m" : "http://www.w3schools.com/transaction/", "soap:mustUnderstand" : "1"])
+        let body = envelope.addChild(name: "soap:Body")
+            let getStockPrice = body.addChild(name: "m:GetStockPrice")
+                getStockPrice.addChild(name: "m:StockName", value: "AAPL")
 
     // prints the same XML structure as original
-    print(soapRequest.xml)
+    print(combineRequest.xml)
+/*
+    <?xml version="1.0" encoding="utf-8" standalone="no"?>
+    <soap:Envelope xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+        <soap:Header>
+            <m:Trans soap:mustUnderstand="1" xmlns:m="http://www.w3schools.com/transaction/">234</m:Trans>
+        </soap:Header>
+        <soap:Body>
+            <m:GetStockPrice>
+                <m:StockName>AAPL</m:StockName>
+            </m:GetStockPrice>
+        </soap:Body>
+    </soap:Envelope>
+ */
+}
 
+func getDocumentsDirectory() -> URL {
+    let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+    return paths[0]
 }
 
 // MARK: - Data Structure
